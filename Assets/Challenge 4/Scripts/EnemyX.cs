@@ -4,13 +4,14 @@ using UnityEngine;
 
 public class EnemyX : MonoBehaviour
 {
-    public float speed = 3f;   // movement speed (can adjust in Inspector)
+    public float speed;   // movement speed (can adjust in Inspector)
 
     private Rigidbody enemyRb;
     private GameObject playerGoal;
 
     void Start()
     {
+        speed = 3f;
         enemyRb = GetComponent<Rigidbody>();
         // Find the Player Goal object in the scene
         playerGoal = GameObject.Find("Player Goal");
