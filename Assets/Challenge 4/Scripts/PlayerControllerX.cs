@@ -4,7 +4,7 @@ using UnityEngine;
 public class PlayerControllerX : MonoBehaviour
 {
     private Rigidbody playerRb;
-    private float speed = 500;
+    private float speed = 280;
     private GameObject focalPoint;
 
     [Header("Powerups")]
@@ -27,7 +27,14 @@ public class PlayerControllerX : MonoBehaviour
     [SerializeField] private float slamRadius = 7f;
     [SerializeField] private float slamMaxForce = 120f;
 
+    [Header("Turbo Boost (Bonus)")]
+    [SerializeField] private KeyCode turboKey = KeyCode.Space;
+    [SerializeField] private float turboImpulse = 22f;
+    [SerializeField] private float turboCooldown = 0.25f; // stops spamming
+    [SerializeField] private ParticleSystem turboSmoke;   // Drag Smoke_Particle here
+
     private bool isSmashing = false;
+    private float nextTurboTime = 0f;
 
     void Start()
     {
@@ -36,6 +43,16 @@ public class PlayerControllerX : MonoBehaviour
 
         if (powerupIndicator != null) powerupIndicator.SetActive(false);
         if (smashIndicator != null) smashIndicator.SetActive(false);
+
+        // Auto-find smoke if you forget to assign it (must be child of Focal Point)
+        if (turboSmoke == null && focalPoint != null)
+            turboSmoke = focalPoint.GetComponentInChildren<ParticleSystem>(true);
+
+        if (turboSmoke != null)
+        {
+            turboSmoke.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            turboSmoke.gameObject.SetActive(false);
+        }
     }
 
     void Update()
@@ -55,6 +72,37 @@ public class PlayerControllerX : MonoBehaviour
         if (hasSmashPowerup && !isSmashing && Input.GetKeyDown(smashKey))
         {
             StartCoroutine(DoSmash());
+        }
+
+        // Turbo boost
+        if (Input.GetKeyDown(turboKey) && Time.time >= nextTurboTime)
+        {
+            TurboBoost();
+            nextTurboTime = Time.time + turboCooldown;
+        }
+    }
+
+    private void TurboBoost()
+    {
+        Vector3 boostDir = focalPoint.transform.forward;
+        playerRb.AddForce(boostDir * turboImpulse, ForceMode.Impulse);
+
+        // Smoke 
+        if (turboSmoke != null)
+        {
+            turboSmoke.gameObject.SetActive(true);
+            turboSmoke.Play();
+            StartCoroutine(StopTurboSmokeAfter(0.35f));
+        }
+    }
+
+    IEnumerator StopTurboSmokeAfter(float seconds)
+    {
+        yield return new WaitForSeconds(seconds);
+        if (turboSmoke != null)
+        {
+            turboSmoke.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+            turboSmoke.gameObject.SetActive(false);
         }
     }
 
@@ -105,14 +153,23 @@ public class PlayerControllerX : MonoBehaviour
 
     private void OnCollisionEnter(Collision other)
     {
-        // Knockback enemy on collision
         if (other.gameObject.CompareTag("Enemy"))
         {
             Rigidbody enemyRb = other.gameObject.GetComponent<Rigidbody>();
-            Vector3 awayFromPlayer = (other.transform.position - transform.position).normalized;
+            EnemyX enemyScript = other.gameObject.GetComponent<EnemyX>();
+
+            Vector3 away = (other.transform.position - transform.position).normalized;
 
             float strength = hasKnockbackPowerup ? powerupStrength : normalStrength;
-            enemyRb.AddForce(awayFromPlayer * strength, ForceMode.Impulse);
+
+            // stop its current movement 
+            enemyRb.linearVelocity = Vector3.zero;
+
+            // instant knockback
+            enemyRb.AddForce(away * strength, ForceMode.VelocityChange);
+
+            // small stun
+            if (enemyScript != null) enemyScript.Stun(0.25f);
         }
     }
 
@@ -120,11 +177,17 @@ public class PlayerControllerX : MonoBehaviour
     {
         isSmashing = true;
 
+        // Hop up
         playerRb.AddForce(Vector3.up * hopImpulse, ForceMode.Impulse);
+
+        // wait until we stop going up
         while (playerRb.linearVelocity.y > 0.1f)
             yield return null;
 
+        // Slam down
         playerRb.AddForce(Vector3.down * slamDownForce, ForceMode.Impulse);
+
+        // wait until grounded
         while (!IsGrounded())
             yield return null;
 
@@ -134,7 +197,6 @@ public class PlayerControllerX : MonoBehaviour
 
     private bool IsGrounded()
     {
-        // Small raycast below ball
         return Physics.Raycast(transform.position, Vector3.down, 1.1f);
     }
 

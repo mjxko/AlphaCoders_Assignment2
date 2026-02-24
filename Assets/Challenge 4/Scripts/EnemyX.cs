@@ -5,8 +5,16 @@ public class EnemyX : MonoBehaviour
     public float speed = 3f;  
     [SerializeField] private float maxVelocity = 12f;
 
+    private float stunTimer = 0f;
+
+    public void Stun(float seconds)
+    {
+        stunTimer = Mathf.Max(stunTimer, seconds);
+    }
+
     private Rigidbody enemyRb;
     private Transform playerGoal;
+
 
     void Awake()
     {
@@ -27,6 +35,12 @@ public class EnemyX : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (stunTimer > 0f)
+        {
+            stunTimer -= Time.fixedDeltaTime;
+            return;
+        }
+
         if (playerGoal == null || enemyRb == null) return;
 
         Vector3 dir = (playerGoal.position - transform.position).normalized;
