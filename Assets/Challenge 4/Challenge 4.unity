@@ -742,7 +742,7 @@ MonoBehaviour:
   slamRadius: 10
   slamMaxForce: 50
   turboKey: 32
-  turboImpulse: 22
+  turboImpulse: 15
   turboCooldown: 0.25
   turboSmoke: {fileID: 621335667}
 --- !u!4 &621335665 stripped
