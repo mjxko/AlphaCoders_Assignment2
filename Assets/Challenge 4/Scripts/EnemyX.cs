@@ -1,41 +1,37 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class EnemyX : MonoBehaviour
 {
-    public float speed;   // movement speed (can adjust in Inspector)
+    public float speed = 3f;
 
     private Rigidbody enemyRb;
-    private GameObject playerGoal;
+    private Transform playerGoal;
 
     void Start()
     {
-        speed = 3f;
         enemyRb = GetComponent<Rigidbody>();
-        // Find the Player Goal object in the scene
-        playerGoal = GameObject.Find("Player Goal");
+        GameObject goalObj = GameObject.Find("Player Goal");
+        if (goalObj != null) playerGoal = goalObj.transform;
     }
 
-    void Update()
+    void FixedUpdate()
     {
-        // Only move if playerGoal exists (prevents NullReference error)
-        if (playerGoal != null)
-        {
-            // Direction toward Player Goal
-            Vector3 lookDirection = (playerGoal.transform.position - transform.position).normalized;
+        if (playerGoal == null) return;
 
-            // Move enemy toward goal
-            enemyRb.AddForce(lookDirection * speed);
-        }
+        Vector3 dir = (playerGoal.position - transform.position).normalized;
+
+        //Smooth consistent physics movement
+        enemyRb.AddForce(dir * speed, ForceMode.Force);
+
+        //clamp max velocity so it never becomes insane
+        float maxSpeed = 8f;
+        if (enemyRb.linearVelocity.magnitude > maxSpeed)
+            enemyRb.linearVelocity = enemyRb.linearVelocity.normalized * maxSpeed;
     }
 
     private void OnCollisionEnter(Collision other)
     {
-        // Destroy enemy if it hits either goal
         if (other.gameObject.name == "Enemy Goal" || other.gameObject.name == "Player Goal")
-        {
             Destroy(gameObject);
-        }
     }
 }
