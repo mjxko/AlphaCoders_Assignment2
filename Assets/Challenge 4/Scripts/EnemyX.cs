@@ -1,37 +1,62 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class EnemyX : MonoBehaviour
 {
-    public float speed = 3f;   // movement speed (can adjust in Inspector)
+    public float speed = 3f;  
+    [SerializeField] private float maxVelocity = 12f;
+
+    private float stunTimer = 0f;
+
+    public void Stun(float seconds)
+    {
+        stunTimer = Mathf.Max(stunTimer, seconds);
+    }
 
     private Rigidbody enemyRb;
-    private GameObject playerGoal;
+    private Transform playerGoal;
+
+
+    void Awake()
+    {
+        enemyRb = GetComponent<Rigidbody>();
+    }
+
+
+    public void InitSpeed(float newSpeed)
+    {
+        speed = newSpeed;
+    }
 
     void Start()
     {
-        enemyRb = GetComponent<Rigidbody>();
-        // Find the Player Goal object in the scene
-        playerGoal = GameObject.Find("Player Goal");
+        GameObject goalObj = GameObject.Find("Player Goal");
+        if (goalObj != null) playerGoal = goalObj.transform;
     }
 
-    void Update()
+    void FixedUpdate()
     {
-        // Only move if playerGoal exists (prevents NullReference error)
-        if (playerGoal != null)
+        if (stunTimer > 0f)
         {
-            // Direction toward Player Goal
-            Vector3 lookDirection = (playerGoal.transform.position - transform.position).normalized;
+            stunTimer -= Time.fixedDeltaTime;
+            return;
+        }
 
-            // Move enemy toward goal
-            enemyRb.AddForce(lookDirection * speed);
+        if (playerGoal == null || enemyRb == null) return;
+
+        Vector3 dir = (playerGoal.position - transform.position).normalized;
+
+        // safe movement
+        enemyRb.AddForce(dir * speed, ForceMode.Force);
+
+        // prevent big acceleration
+        if (enemyRb.linearVelocity.magnitude > maxVelocity)
+        {
+            enemyRb.linearVelocity = enemyRb.linearVelocity.normalized * maxVelocity;
         }
     }
 
     private void OnCollisionEnter(Collision other)
     {
-        // Destroy enemy if it hits either goal
         if (other.gameObject.name == "Enemy Goal" || other.gameObject.name == "Player Goal")
         {
             Destroy(gameObject);
