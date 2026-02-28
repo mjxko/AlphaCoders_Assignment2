@@ -70,11 +70,12 @@ public class SpawnManagerX : MonoBehaviour
             }
         }
 
-        waveCount++;
+        
         if (waveText != null)
         {
             waveText.text = "Wave: " + waveCount;
         }
+        waveCount++;
         ResetPlayerPosition();
     }
 

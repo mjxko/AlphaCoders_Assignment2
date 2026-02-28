@@ -21,7 +21,7 @@ public class PlayerControllerX : MonoBehaviour
     [SerializeField] private float powerupStrength = 55f;
 
     [Header("Smash Settings")]
-    [SerializeField] private KeyCode smashKey = KeyCode.E;
+    [SerializeField] private KeyCode smashKey = KeyCode.Space;
     [SerializeField] private float hopImpulse = 12f;
     [SerializeField] private float slamDownForce = 60f;
     [SerializeField] private float slamRadius = 7f;
@@ -177,9 +177,11 @@ public class PlayerControllerX : MonoBehaviour
     {
         isSmashing = true;
 
+        playerRb.linearVelocity = new Vector3( 0f,0f,0f);
         // Hop up
         playerRb.AddForce(Vector3.up * hopImpulse, ForceMode.Impulse);
 
+        yield return new WaitForFixedUpdate();
         // wait until we stop going up
         while (playerRb.linearVelocity.y > 0.1f)
             yield return null;

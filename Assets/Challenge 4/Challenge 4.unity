@@ -737,8 +737,8 @@ MonoBehaviour:
   normalStrength: 15
   powerupStrength: 45
   smashKey: 32
-  hopImpulse: 7
-  slamDownForce: 25
+  hopImpulse: 12
+  slamDownForce: 40
   slamRadius: 10
   slamMaxForce: 50
   turboKey: 32
