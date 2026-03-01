@@ -3,20 +3,19 @@ using UnityEngine;
 
 public class PlayerControllerX : MonoBehaviour
 {
-    private Rigidbody playerRb;
+    [Header("Movement")]
     [SerializeField] private float speed = 280f;
-    private GameObject focalPoint;
-
+    private Rigidbody playerRb;
+    private Transform focalPoint;
     private float verticalInput;
 
     [Header("Powerups")]
     public bool hasKnockbackPowerup;
     public bool hasSmashPowerup;
+    [SerializeField] private int powerUpDuration = 5;
 
     public GameObject powerupIndicator;
     public GameObject smashIndicator;
-
-    public int powerUpDuration = 5;
 
     [Header("Knockback Settings")]
     [SerializeField] private float normalStrength = 18f;
@@ -24,30 +23,31 @@ public class PlayerControllerX : MonoBehaviour
 
     [Header("Smash Settings")]
     [SerializeField] private KeyCode smashKey = KeyCode.E;
-    [SerializeField] private float hopImpulse = 12f;
-    [SerializeField] private float slamDownForce = 60f;
+    [SerializeField] private float hopImpulse = 8f;       // lowered (was 12)
+    [SerializeField] private float slamDownImpulse = 18f; // lowered (was 60)
     [SerializeField] private float slamRadius = 7f;
-    [SerializeField] private float slamMaxForce = 120f;
-
-    [Header("Turbo Boost (Bonus)")]
-    [SerializeField] private KeyCode turboKey = KeyCode.Space;
-    [SerializeField] private float turboImpulse = 22f;
-    [SerializeField] private float turboCooldown = 0.25f;
-    [SerializeField] private ParticleSystem turboSmoke;
-
+    [SerializeField] private float slamMaxForce = 60f;    // lowered (was 120)
     private bool isSmashing = false;
+
+    [Header("Turbo Boost")]
+    [SerializeField] private KeyCode turboKey = KeyCode.Space;
+    [SerializeField] private float turboImpulse = 12f;    // lowered (was 22)
+    [SerializeField] private float turboCooldown = 0.35f;
+    [SerializeField] private ParticleSystem turboSmoke;
     private float nextTurboTime = 0f;
 
     void Start()
     {
         playerRb = GetComponent<Rigidbody>();
-        focalPoint = GameObject.Find("Focal Point");
+
+        GameObject fp = GameObject.Find("Focal Point");
+        if (fp != null) focalPoint = fp.transform;
 
         if (powerupIndicator != null) powerupIndicator.SetActive(false);
         if (smashIndicator != null) smashIndicator.SetActive(false);
 
-        if (turboSmoke == null && focalPoint != null)
-            turboSmoke = focalPoint.GetComponentInChildren<ParticleSystem>(true);
+        if (turboSmoke == null && fp != null)
+            turboSmoke = fp.GetComponentInChildren<ParticleSystem>(true);
 
         if (turboSmoke != null)
         {
@@ -58,21 +58,19 @@ public class PlayerControllerX : MonoBehaviour
 
     void Update()
     {
-        // Read input in Update
         verticalInput = Input.GetAxis("Vertical");
 
-        // Keep indicators under player
+        // visuals only
         if (powerupIndicator != null)
             powerupIndicator.transform.position = transform.position + new Vector3(0, -0.6f, 0);
-
         if (smashIndicator != null)
             smashIndicator.transform.position = transform.position + new Vector3(0, -0.6f, 0);
 
-        // Smash activation
-        if (hasSmashPowerup && !isSmashing && Input.GetKeyDown(smashKey))
+        // Smash (only when grounded to prevent flying)
+        if (hasSmashPowerup && !isSmashing && Input.GetKeyDown(smashKey) && IsGrounded())
             StartCoroutine(DoSmash());
 
-        // Turbo boost
+        // Turbo
         if (Input.GetKeyDown(turboKey) && Time.time >= nextTurboTime)
         {
             TurboBoost();
@@ -82,11 +80,10 @@ public class PlayerControllerX : MonoBehaviour
 
     void FixedUpdate()
     {
-        // Physics movement in FixedUpdate
         if (focalPoint == null) return;
 
-        Vector3 forward = focalPoint.transform.forward;
-        forward.y = 0f;        // keep movement flat
+        Vector3 forward = focalPoint.forward;
+        forward.y = 0f;
         forward.Normalize();
 
         playerRb.AddForce(forward * verticalInput * speed, ForceMode.Force);
@@ -96,17 +93,17 @@ public class PlayerControllerX : MonoBehaviour
     {
         if (focalPoint == null) return;
 
-        Vector3 boostDir = focalPoint.transform.forward;
-        boostDir.y = 0f;
-        boostDir.Normalize();
+        Vector3 dir = focalPoint.forward;
+        dir.y = 0f;
+        dir.Normalize();
 
-        playerRb.AddForce(boostDir * turboImpulse, ForceMode.Impulse);
+        playerRb.AddForce(dir * turboImpulse, ForceMode.Impulse);
 
         if (turboSmoke != null)
         {
             turboSmoke.gameObject.SetActive(true);
             turboSmoke.Play();
-            StartCoroutine(StopTurboSmokeAfter(0.35f));
+            StartCoroutine(StopTurboSmokeAfter(0.25f));
         }
     }
 
@@ -120,33 +117,71 @@ public class PlayerControllerX : MonoBehaviour
         }
     }
 
+    private bool IsGrounded()
+    {
+        // slightly longer ray so it works on slopes
+        return Physics.Raycast(transform.position, Vector3.down, 1.2f);
+    }
+
+    IEnumerator DoSmash()
+    {
+        isSmashing = true;
+
+        // Hop up
+        playerRb.AddForce(Vector3.up * hopImpulse, ForceMode.Impulse);
+
+        // small delay so hop happens
+        yield return new WaitForSeconds(0.12f);
+
+        // Slam down (impulse, not crazy)
+        playerRb.AddForce(Vector3.down * slamDownImpulse, ForceMode.Impulse);
+
+        // wait until grounded again
+        while (!IsGrounded())
+            yield return null;
+
+        SlamBlast();
+        isSmashing = false;
+    }
+
+    private void SlamBlast()
+    {
+        Collider[] hits = Physics.OverlapSphere(transform.position, slamRadius);
+        foreach (Collider hit in hits)
+        {
+            if (!hit.CompareTag("Enemy")) continue;
+
+            Rigidbody enemyRb = hit.GetComponent<Rigidbody>();
+            if (enemyRb == null) continue;
+
+            Vector3 direction = (hit.transform.position - transform.position);
+            float distance = direction.magnitude;
+
+            float mult = 1f - (distance / slamRadius);
+            mult = Mathf.Clamp01(mult);
+
+            Vector3 force = direction.normalized * slamMaxForce * mult + Vector3.up * 3f;
+            enemyRb.AddForce(force, ForceMode.Impulse);
+        }
+    }
+
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Powerup"))
         {
             Destroy(other.gameObject);
-            ActivateKnockbackPowerup();
+            hasKnockbackPowerup = true;
+            if (powerupIndicator != null) powerupIndicator.SetActive(true);
+            StartCoroutine(KnockbackCooldown());
         }
 
         if (other.CompareTag("SmashPowerup"))
         {
             Destroy(other.gameObject);
-            ActivateSmashPowerup();
+            hasSmashPowerup = true;
+            if (smashIndicator != null) smashIndicator.SetActive(true);
+            StartCoroutine(SmashCooldown());
         }
-    }
-
-    private void ActivateKnockbackPowerup()
-    {
-        hasKnockbackPowerup = true;
-        if (powerupIndicator != null) powerupIndicator.SetActive(true);
-        StartCoroutine(KnockbackCooldown());
-    }
-
-    private void ActivateSmashPowerup()
-    {
-        hasSmashPowerup = true;
-        if (smashIndicator != null) smashIndicator.SetActive(true);
-        StartCoroutine(SmashCooldown());
     }
 
     IEnumerator KnockbackCooldown()
@@ -165,65 +200,18 @@ public class PlayerControllerX : MonoBehaviour
 
     private void OnCollisionEnter(Collision other)
     {
-        if (other.gameObject.CompareTag("Enemy"))
-        {
-            Rigidbody enemyRb = other.gameObject.GetComponent<Rigidbody>();
-            EnemyX enemyScript = other.gameObject.GetComponent<EnemyX>();
-            if (enemyRb == null) return;
+        if (!other.gameObject.CompareTag("Enemy")) return;
 
-            Vector3 away = (other.transform.position - transform.position).normalized;
-            float strength = hasKnockbackPowerup ? powerupStrength : normalStrength;
+        Rigidbody enemyRb = other.gameObject.GetComponent<Rigidbody>();
+        EnemyX enemyScript = other.gameObject.GetComponent<EnemyX>();
+        if (enemyRb == null) return;
 
-            enemyRb.linearVelocity = Vector3.zero;
-            enemyRb.AddForce(away * strength, ForceMode.VelocityChange);
+        Vector3 away = (other.transform.position - transform.position).normalized;
+        float strength = hasKnockbackPowerup ? powerupStrength : normalStrength;
 
-            if (enemyScript != null) enemyScript.Stun(0.25f);
-        }
-    }
+        enemyRb.linearVelocity = Vector3.zero;
+        enemyRb.AddForce(away * strength, ForceMode.VelocityChange);
 
-    IEnumerator DoSmash()
-    {
-        isSmashing = true;
-
-        playerRb.AddForce(Vector3.up * hopImpulse, ForceMode.Impulse);
-
-        while (playerRb.linearVelocity.y > 0.1f)
-            yield return null;
-
-        playerRb.AddForce(Vector3.down * slamDownForce, ForceMode.Impulse);
-
-        while (!IsGrounded())
-            yield return null;
-
-        SlamBlast();
-        isSmashing = false;
-    }
-
-    private bool IsGrounded()
-    {
-        return Physics.Raycast(transform.position, Vector3.down, 1.1f);
-    }
-
-    private void SlamBlast()
-    {
-        Collider[] hits = Physics.OverlapSphere(transform.position, slamRadius);
-
-        foreach (Collider hit in hits)
-        {
-            if (hit.CompareTag("Enemy"))
-            {
-                Rigidbody enemyRb = hit.GetComponent<Rigidbody>();
-                if (enemyRb == null) continue;
-
-                Vector3 direction = (hit.transform.position - transform.position);
-                float distance = direction.magnitude;
-
-                float forceMultiplier = 1f - (distance / slamRadius);
-                forceMultiplier = Mathf.Clamp01(forceMultiplier);
-
-                Vector3 force = direction.normalized * slamMaxForce * forceMultiplier + Vector3.up * 6f;
-                enemyRb.AddForce(force, ForceMode.Impulse);
-            }
-        }
+        if (enemyScript != null) enemyScript.Stun(0.25f);
     }
 }
