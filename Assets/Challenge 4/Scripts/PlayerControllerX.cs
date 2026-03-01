@@ -4,8 +4,10 @@ using UnityEngine;
 public class PlayerControllerX : MonoBehaviour
 {
     private Rigidbody playerRb;
-    private float speed = 280;
+    [SerializeField] private float speed = 280f;
     private GameObject focalPoint;
+
+    private float verticalInput;
 
     [Header("Powerups")]
     public bool hasKnockbackPowerup;
@@ -30,8 +32,8 @@ public class PlayerControllerX : MonoBehaviour
     [Header("Turbo Boost (Bonus)")]
     [SerializeField] private KeyCode turboKey = KeyCode.Space;
     [SerializeField] private float turboImpulse = 22f;
-    [SerializeField] private float turboCooldown = 0.25f; // stops spamming
-    [SerializeField] private ParticleSystem turboSmoke;   // Drag Smoke_Particle here
+    [SerializeField] private float turboCooldown = 0.25f;
+    [SerializeField] private ParticleSystem turboSmoke;
 
     private bool isSmashing = false;
     private float nextTurboTime = 0f;
@@ -44,7 +46,6 @@ public class PlayerControllerX : MonoBehaviour
         if (powerupIndicator != null) powerupIndicator.SetActive(false);
         if (smashIndicator != null) smashIndicator.SetActive(false);
 
-        // Auto-find smoke if you forget to assign it (must be child of Focal Point)
         if (turboSmoke == null && focalPoint != null)
             turboSmoke = focalPoint.GetComponentInChildren<ParticleSystem>(true);
 
@@ -57,9 +58,8 @@ public class PlayerControllerX : MonoBehaviour
 
     void Update()
     {
-        // Movement
-        float verticalInput = Input.GetAxis("Vertical");
-        playerRb.AddForce(focalPoint.transform.forward * verticalInput * speed * Time.deltaTime);
+        // Read input in Update
+        verticalInput = Input.GetAxis("Vertical");
 
         // Keep indicators under player
         if (powerupIndicator != null)
@@ -70,9 +70,7 @@ public class PlayerControllerX : MonoBehaviour
 
         // Smash activation
         if (hasSmashPowerup && !isSmashing && Input.GetKeyDown(smashKey))
-        {
             StartCoroutine(DoSmash());
-        }
 
         // Turbo boost
         if (Input.GetKeyDown(turboKey) && Time.time >= nextTurboTime)
@@ -82,12 +80,28 @@ public class PlayerControllerX : MonoBehaviour
         }
     }
 
+    void FixedUpdate()
+    {
+        // Physics movement in FixedUpdate
+        if (focalPoint == null) return;
+
+        Vector3 forward = focalPoint.transform.forward;
+        forward.y = 0f;        // keep movement flat
+        forward.Normalize();
+
+        playerRb.AddForce(forward * verticalInput * speed, ForceMode.Force);
+    }
+
     private void TurboBoost()
     {
+        if (focalPoint == null) return;
+
         Vector3 boostDir = focalPoint.transform.forward;
+        boostDir.y = 0f;
+        boostDir.Normalize();
+
         playerRb.AddForce(boostDir * turboImpulse, ForceMode.Impulse);
 
-        // Smoke 
         if (turboSmoke != null)
         {
             turboSmoke.gameObject.SetActive(true);
@@ -108,14 +122,12 @@ public class PlayerControllerX : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        // Normal knockback powerup
         if (other.CompareTag("Powerup"))
         {
             Destroy(other.gameObject);
             ActivateKnockbackPowerup();
         }
 
-        // Smash powerup
         if (other.CompareTag("SmashPowerup"))
         {
             Destroy(other.gameObject);
@@ -157,18 +169,14 @@ public class PlayerControllerX : MonoBehaviour
         {
             Rigidbody enemyRb = other.gameObject.GetComponent<Rigidbody>();
             EnemyX enemyScript = other.gameObject.GetComponent<EnemyX>();
+            if (enemyRb == null) return;
 
             Vector3 away = (other.transform.position - transform.position).normalized;
-
             float strength = hasKnockbackPowerup ? powerupStrength : normalStrength;
 
-            // stop its current movement 
             enemyRb.linearVelocity = Vector3.zero;
-
-            // instant knockback
             enemyRb.AddForce(away * strength, ForceMode.VelocityChange);
 
-            // small stun
             if (enemyScript != null) enemyScript.Stun(0.25f);
         }
     }
@@ -177,17 +185,13 @@ public class PlayerControllerX : MonoBehaviour
     {
         isSmashing = true;
 
-        // Hop up
         playerRb.AddForce(Vector3.up * hopImpulse, ForceMode.Impulse);
 
-        // wait until we stop going up
         while (playerRb.linearVelocity.y > 0.1f)
             yield return null;
 
-        // Slam down
         playerRb.AddForce(Vector3.down * slamDownForce, ForceMode.Impulse);
 
-        // wait until grounded
         while (!IsGrounded())
             yield return null;
 

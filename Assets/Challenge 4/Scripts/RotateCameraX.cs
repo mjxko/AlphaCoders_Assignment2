@@ -2,15 +2,21 @@
 
 public class RotateCameraX : MonoBehaviour
 {
-    [SerializeField] private float rotateSpeed = 50f;
-    public GameObject player;
+    [SerializeField] float rotateSpeed = 120f;
+    [SerializeField] Transform player;
 
-    void Update()
+    void LateUpdate()
     {
-        float horizontalInput = Input.GetAxis("Horizontal");
-        transform.Rotate(Vector3.up, horizontalInput * rotateSpeed * Time.deltaTime);
+        if (!player) return;
 
-        if (player != null)
-            transform.position = player.transform.position;
+        // Follow player position exactly
+        transform.position = player.position;
+
+        // Rotate pivot around Y
+        float h = Input.GetAxis("Horizontal");
+        transform.Rotate(Vector3.up, h * rotateSpeed * Time.deltaTime);
+
+        // Make camera always look at player
+        Camera.main.transform.LookAt(player.position + Vector3.up * 1.5f);
     }
 }
