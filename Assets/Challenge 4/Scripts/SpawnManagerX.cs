@@ -23,6 +23,11 @@ public class SpawnManagerX : MonoBehaviour
     [SerializeField] private float baseEnemySpeed = 3f;
     [SerializeField] private float speedIncreasePerWave = 0.5f;
 
+    void Start()
+    {
+        UpdateWaveUI();
+    }
+
     void Update()
     {
         enemyCount = GameObject.FindGameObjectsWithTag("Enemy").Length;
@@ -42,6 +47,8 @@ public class SpawnManagerX : MonoBehaviour
 
     void SpawnEnemyWave(int enemiesToSpawn)
     {
+        UpdateWaveUI();
+
         Vector3 powerupSpawnOffset = new Vector3(0, 0, -15);
 
         int totalPowerups = GameObject.FindGameObjectsWithTag("Powerup").Length
@@ -71,11 +78,16 @@ public class SpawnManagerX : MonoBehaviour
         }
 
         waveCount++;
+
+        ResetPlayerPosition();
+    }
+
+    void UpdateWaveUI()
+    {
         if (waveText != null)
         {
             waveText.text = "Wave: " + waveCount;
         }
-        ResetPlayerPosition();
     }
 
     void ResetPlayerPosition()
