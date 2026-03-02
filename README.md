@@ -28,13 +28,15 @@ all the features were developed in branches then merged into main after testing.
 - Added Smash Powerup (hop + radial blast)
 - Added progressive wave difficulty
 - Replaced hardcoded values with serialized fields
-- Integrated custom Quidditch-themed assets
+- Integrated custom Quidditch-themed assets and ui styling
+- Added a looped drum audio for arena atmosphere
 
 ---
 
 ## Theme and Modifications:
 - The original prototype was redesigned into a Quidditch inspired arena from harry potter because its fun
 - Player styled as a Quaffle whereas enemies styled as Bludgers
+- Arena visuals were modified also to create a darker and stadium magical environment
 - we used some custom models, materials, lighting, and UI font (some from which we got online) 
 
 ---
