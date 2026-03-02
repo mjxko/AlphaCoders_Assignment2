@@ -13,11 +13,12 @@ Instructor: Dr. Jamal Zemerly
 ---
 
 ## Branch Structure:
-- **main** – Final stable version  
+- **main** – Final stable version
+- **Majed_Camera,ball** – Camera adjustments and ball/player refinements
 - **feature/smash-powerup** – Smash mechanic implementation  
 - **feature/wave-difficulty** – Progressive enemy speed scaling  
 - **feature/ui-wave-counter** – Wave UI system  
-- **feature/theme-redesign** – Quidditch theme redesign  
+- **feature/theme-redesign** – Quidditch theme redesign
 all the features were developed in branches then merged into main after testing.
 ---
 
